@@ -35,7 +35,7 @@ namespace Stateful2
         {
             ServiceEventSource.Current.ServiceMessage(context, "Partition Id propertye has value: {0}", context.PartitionId);
 
-            return new MyCommunicationListener();
+            return new MyCommunicationListener(context);
         }
 
         /// <summary>
@@ -70,25 +70,6 @@ namespace Stateful2
 
                 await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
             }
-        }
-    }
-
-    public class MyCommunicationListener : ICommunicationListener
-    {
-        public async Task<string> OpenAsync(CancellationToken cancellationToken)
-        {
-            //start
-            return null;
-        }
-
-        public async Task CloseAsync(CancellationToken cancellationToken)
-        {
-            //stop
-        }
-
-        public void Abort()
-        {
-            //stop?
         }
     }
 }
