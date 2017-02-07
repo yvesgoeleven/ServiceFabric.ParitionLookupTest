@@ -22,7 +22,7 @@ namespace Stateful1
             _endpointConfiguration.MakeInstanceUniquelyAddressable(context.PartitionId.ToString());
             _endpointConfiguration.RegisterComponents(components => components.RegisterSingleton(context) );
             var transportConfig = _endpointConfiguration.UseTransport<AzureServiceBusTransport>();
-            transportConfig.ConnectionString("Endpoint=sb://servicebus-unittesting.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=y15MuGqqMKL67kUrKPdKiq+kPBrhW+774NiDVXsjSDU=");
+            transportConfig.ConnectionString("");
             transportConfig.UseForwardingTopology();
         }
 

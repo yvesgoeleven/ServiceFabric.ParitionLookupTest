@@ -23,9 +23,8 @@ namespace Stateful2
             _endpointConfiguration.RegisterComponents(components => components.RegisterSingleton(context));
 
             var transportConfig = _endpointConfiguration.UseTransport<AzureServiceBusTransport>();
-            transportConfig.ConnectionString("Endpoint=sb://servicebus-unittesting.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=y15MuGqqMKL67kUrKPdKiq+kPBrhW+774NiDVXsjSDU=");
+            transportConfig.ConnectionString("");
             transportConfig.UseForwardingTopology();
-            
         }
 
         public async Task<string> OpenAsync(CancellationToken cancellationToken)

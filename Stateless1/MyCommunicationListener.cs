@@ -1,26 +1,22 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Fabric;
 using System.Threading;
 using System.Threading.Tasks;
 using Contract;
-using Microsoft.ServiceFabric.Services.Client;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
-using Microsoft.ServiceFabric.Services.Remoting.Client;
 using NServiceBus;
 using NServiceBus.Configuration.AdvanceExtensibility;
-using NServiceBus.Features;
 using NServiceBus.Routing;
 
 namespace Stateless1
 {
     public class MyCommunicationListener : ICommunicationListener
     {
-        private EndpointConfiguration _endpointConfiguration;
+        private readonly EndpointConfiguration _endpointConfiguration;
         private IEndpointInstance _endpointInstance;
 
-        public MyCommunicationListener()
+        public MyCommunicationListener(StatelessServiceContext context)
         {
             _endpointConfiguration = new EndpointConfiguration(endpointName: "PartionedSpike.Client");
             _endpointConfiguration.SendFailedMessagesTo("error");
@@ -29,47 +25,67 @@ namespace Stateless1
             _endpointConfiguration.EnableInstallers();
             _endpointConfiguration.UsePersistence<InMemoryPersistence>();
             var transportConfig = _endpointConfiguration.UseTransport<AzureServiceBusTransport>();
-            transportConfig.ConnectionString("Endpoint=sb://servicebus-unittesting.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=y15MuGqqMKL67kUrKPdKiq+kPBrhW+774NiDVXsjSDU=");
+            transportConfig.ConnectionString("");
             transportConfig.UseForwardingTopology();
             var routingSettings = transportConfig.Routing();
-            routingSettings.RouteToEndpoint(typeof(MyMessage), "PartionedSpike.RangedServer");
+
+            routingSettings.RouteToEndpoint(typeof(MyRangedMessage), "PartionedSpike.RangedServer");
+            routingSettings.RouteToEndpoint(typeof(MyNamedMessage), "PartionedSpike.NamedServer");
 
             var internalSettings = _endpointConfiguration.GetSettings();
-            var policy = internalSettings.Get<DistributionPolicy>();
-            policy.SetDistributionStrategy(new MyDistributionStrategy("PartionedSpike.RangedServer", DistributionStrategyScope.Send));
-            // var instances = internalSettings.GetOrCreate<EndpointInstances>();
+            var routingTable = internalSettings.GetOrCreate<UnicastRoutingTable>();
+            var addressMap = new Dictionary<string, string>()
+            {
+                {"PartionedSpike.RangedServer", @"fabric:/PartitionedSpike/Stateful1"},
+                {"PartionedSpike.NamedServer", @"fabric:/PartitionedSpike/Stateful2"}
+            };
 
-            //PopulateInstances(instances).GetAwaiter().GetResult();
+            var namedPartitions = new[] {"a", "b", "c"};
+            Func<object, object> partitionMap = o =>
+            {
+                var random = new Random();
+                if (o is MyNamedMessage)
+                {
+                    return namedPartitions[random.Next(0, 3)];
+                }
+                else
+                {
+                    return random.Next(0, 300);
+                }
+            };
+            _endpointConfiguration.Pipeline.Register(new MyBehavior(routingTable, partitionMap, addressMap), "MyBehavior");
+            
+            var policy = internalSettings.GetOrCreate<DistributionPolicy>();
 
-            // routingSettings.InstanceMappingFile();
+            policy.SetDistributionStrategy(new MyDistributionStrategy("PartionedSpike.RangedServer", DistributionStrategyScope.Send, context));
+            policy.SetDistributionStrategy(new MyDistributionStrategy("PartionedSpike.NamedServer", DistributionStrategyScope.Send, context));
+
+            var instances = internalSettings.GetOrCreate<EndpointInstances>();
+            foreach (var address in addressMap)
+            {
+                PopulateInstances(instances, address);
+            }
         }
 
-        //private async Task PopulateInstances(EndpointInstances instances)
-        //{
-        //    var partitionedEndpoints = new List<EndpointInstance>();
-
-        //    var serviceName = new Uri(@"fabric:/PartitionedSpike/Stateful1");
-        //    using (var client = new FabricClient())
-        //    {
-        //        var partitions = await client.QueryManager.GetPartitionListAsync(serviceName);
-
-        //        foreach (var partition in partitions)
-        //        {
-        //            var partitionInformation = (Int64RangePartitionInformation)partition.PartitionInformation;
-        //            partitionedEndpoints.Add(new EndpointInstance(partitionInformation.Id.ToString(), "PartionedSpike.RangedServer")
-        //            {
-                        
-        //            });
-        //        }
-        //    }
-
-        //    instances.AddOrReplaceInstances("Partitions", partitionedEndpoints);
-        //}
-
-        public IEndpointInstance EndpointInstance
+        private void PopulateInstances(EndpointInstances instances, KeyValuePair<string, string> address)
         {
-            get { return _endpointInstance; }
+            var partitionedEndpoints = new List<EndpointInstance>();
+
+            var serviceName = new Uri(address.Value);
+            using (var client = new FabricClient())
+            {
+                var partitions = client.QueryManager.GetPartitionListAsync(serviceName).GetAwaiter().GetResult();
+
+                foreach (var partition in partitions)
+                {
+                    partitionedEndpoints.Add(new EndpointInstance(address.Key, partition.PartitionInformation.Id.ToString()));
+                }
+            }
+
+            instances.AddOrReplaceInstances(address.Value, partitionedEndpoints);
         }
+
+        public IEndpointInstance EndpointInstance => _endpointInstance;
 
         public async Task<string> OpenAsync(CancellationToken cancellationToken)
         {
@@ -86,56 +102,5 @@ namespace Stateless1
         {
             //stop?
         }
-
-        /*
-
-    
-
-    // Use JSON to serialize and deserialize messages (which are just
-    // plain classes) to and from message queues
-    
-
-    // Ask NServiceBus to automatically create message queues
-    
-
-    // Store information in memory for this example, rather than in
-    // a database. In this sample, only subscription information is stored
-    
-
-    // Initialize the endpoint with the finished configuration
-    var endpointInstance = await Endpoint.Start(endpointConfiguration)
-        .ConfigureAwait(false);
-    try
-    {
-        await SendOrder(endpointInstance);
     }
-    finally
-    {
-        await endpointInstance.Stop()
-            .ConfigureAwait(false);
-    }
-         
-         */
-    }
-
-    //public class ListInstances: FeatureStartupTask
-    //{
-    //    protected override Task OnStart(IMessageSession session)
-    //    {
-    //        throw new System.NotImplementedException();
-    //    }
-
-    //    protected override Task OnStop(IMessageSession session)
-    //    {
-    //        throw new System.NotImplementedException();
-    //    }
-    //}
-
-    //public class ListInstancesFeature : Feature
-    //{
-    //    protected override void Setup(FeatureConfigurationContext context)
-    //    {
-    //        throw new System.NotImplementedException();
-    //    }
-    //}
 }
