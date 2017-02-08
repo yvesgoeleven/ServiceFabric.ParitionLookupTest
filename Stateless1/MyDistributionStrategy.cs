@@ -1,11 +1,12 @@
 ﻿using System.Fabric;
-using System.Linq;
 using System.Runtime.Remoting.Messaging;
 using NServiceBus;
 using NServiceBus.Routing;
 
 namespace Stateless1
 {
+    using System.Linq;
+
     public class MyDistributionStrategy : DistributionStrategy
     {
         private readonly StatelessServiceContext _context;
@@ -17,9 +18,12 @@ namespace Stateless1
 
         public override string SelectReceiver(string[] receiverAddresses)
         {
-            var value = (string)CallContext.LogicalGetData("selectedPartition");
-            ServiceEventSource.Current.ServiceMessage(_context, "Going to route a message to partition " + value);
-            return receiverAddresses.FirstOrDefault(a => a.EndsWith(value));
+            var discriminator = (string)CallContext.LogicalGetData("selectedPartition");
+            ServiceEventSource.Current.ServiceMessage(_context, "Going to route a message to partition " + discriminator);
+
+            var logicalAddress = LogicalAddress.CreateRemoteAddress(new EndpointInstance(Endpoint, discriminator));
+
+            return receiverAddresses.FirstOrDefault(a => a == logicalAddress.ToString()); //199 vs 99
         }
     }
 }
