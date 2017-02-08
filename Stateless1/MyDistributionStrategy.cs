@@ -18,6 +18,10 @@ namespace Stateless1
         public override string SelectReceiver(string[] receiverAddresses)
         {
             var value = (string)CallContext.LogicalGetData("selectedPartition");
+            if (value == null)
+            {
+                return receiverAddresses.First();
+            }
             ServiceEventSource.Current.ServiceMessage(_context, "Going to route a message to partition " + value);
             return receiverAddresses.FirstOrDefault(a => a.EndsWith(value));
         }

@@ -45,6 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MyNotProperlyRoutedMessage.cs" />
     <Compile Include="MyRangedMessage.cs" />
     <Compile Include="MyNamedMessage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

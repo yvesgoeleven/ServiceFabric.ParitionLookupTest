@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Runtime.Remoting.Messaging;
 using System.Threading;
 using System.Threading.Tasks;
+using Contract;
 using Microsoft.ServiceFabric.Services.Client;
 using NServiceBus.Pipeline;
 using NServiceBus.Routing;
@@ -27,6 +28,11 @@ namespace Stateless1
 
         public Task Invoke(IOutgoingSendContext context, Func<IOutgoingSendContext, Task> next)
         {
+            if (context.Message.MessageType == typeof(MyNotProperlyRoutedMessage))
+            {
+                return next(context);
+            }
+
             //context.Message.MessageType
             // how to get destination endpoint here, to resolve @"fabric:/PartitionedSpike/Stateful1"
             //unicastRoutingTable
