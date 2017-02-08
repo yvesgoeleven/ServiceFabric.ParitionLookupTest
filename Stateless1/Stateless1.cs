@@ -53,8 +53,20 @@ namespace Stateless1
                     Text = "Hello from client"
                 });
 
+                await Send(new MyNotProperlyRoutedMessage()
+                {
+                    Text = "Hello from client"
+                });
+
                 await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             }
+        }
+
+        private async Task Send(MyNotProperlyRoutedMessage notProperlyRoutedMessage)
+        {
+            var sendoptions = new SendOptions();
+
+            await _listener.EndpointInstance.Send(notProperlyRoutedMessage, sendoptions).ConfigureAwait(false);
         }
 
         private async Task Send(MyRangedMessage myRangedMessage)

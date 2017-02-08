@@ -31,6 +31,7 @@ namespace Stateless1
 
             routingSettings.RouteToEndpoint(typeof(MyRangedMessage), "PartionedSpike.RangedServer");
             routingSettings.RouteToEndpoint(typeof(MyNamedMessage), "PartionedSpike.NamedServer");
+            routingSettings.RouteToEndpoint(typeof(MyNotProperlyRoutedMessage), "PartionedSpike.NamedServer");
 
             var internalSettings = _endpointConfiguration.GetSettings();
             var routingTable = internalSettings.GetOrCreate<UnicastRoutingTable>();
