@@ -6,6 +6,9 @@ using NServiceBus;
 
 namespace Stateful2
 {
+    using System;
+    using System.Linq;
+
     public class MyCommunicationListener : ICommunicationListener
     {
         private EndpointConfiguration _endpointConfiguration;
@@ -13,13 +16,17 @@ namespace Stateful2
 
         public MyCommunicationListener(StatefulServiceContext context)
         {
+            var client = new FabricClient();
+            var servicePartitionList = client.QueryManager.GetPartitionListAsync(new Uri("fabric:/PartitionedSpike/Stateful2"), context.PartitionId).GetAwaiter().GetResult();
+            var namedPartitionInformation = servicePartitionList.Select(x => x.PartitionInformation).Cast<NamedPartitionInformation>().Single(p => p.Id == context.PartitionId);
+
             _endpointConfiguration = new EndpointConfiguration(endpointName: "PartionedSpike.NamedServer");
+            _endpointConfiguration.MakeInstanceUniquelyAddressable(namedPartitionInformation.Name);
             _endpointConfiguration.SendFailedMessagesTo("error");
             _endpointConfiguration.AuditProcessedMessagesTo("audit");
             _endpointConfiguration.UseSerialization<JsonSerializer>();
             _endpointConfiguration.EnableInstallers();
             _endpointConfiguration.UsePersistence<InMemoryPersistence>();
-            _endpointConfiguration.MakeInstanceUniquelyAddressable(context.PartitionId.ToString());
             _endpointConfiguration.RegisterComponents(components => components.RegisterSingleton(context));
 
             var transportConfig = _endpointConfiguration.UseTransport<AzureServiceBusTransport>();

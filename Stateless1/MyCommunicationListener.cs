@@ -33,12 +33,9 @@ namespace Stateless1
             routingSettings.RouteToEndpoint(typeof(MyNamedMessage), "PartionedSpike.NamedServer");
 
             var internalSettings = _endpointConfiguration.GetSettings();
-            var routingTable = internalSettings.GetOrCreate<UnicastRoutingTable>();
-            var addressMap = new Dictionary<string, string>()
-            {
-                {"PartionedSpike.RangedServer", @"fabric:/PartitionedSpike/Stateful1"},
-                {"PartionedSpike.NamedServer", @"fabric:/PartitionedSpike/Stateful2"}
-            };
+
+//                {"PartionedSpike.RangedServer", @"fabric:/PartitionedSpike/Stateful1"},
+//                {"PartionedSpike.NamedServer", @"fabric:/PartitionedSpike/Stateful2"}
 
             var namedPartitions = new[] {"a", "b", "c"};
             Func<object, object> partitionMap = o =>
@@ -50,39 +47,32 @@ namespace Stateless1
                 }
                 else
                 {
-                    return random.Next(0, 300);
+                    return random.Next(0, 2) * 100 + 99;
                 }
             };
-            _endpointConfiguration.Pipeline.Register(new MyBehavior(routingTable, partitionMap, addressMap), "MyBehavior");
+            _endpointConfiguration.Pipeline.Register(new MyBehavior(partitionMap), "MyBehavior");
             
             var policy = internalSettings.GetOrCreate<DistributionPolicy>();
 
             policy.SetDistributionStrategy(new MyDistributionStrategy("PartionedSpike.RangedServer", DistributionStrategyScope.Send, context));
             policy.SetDistributionStrategy(new MyDistributionStrategy("PartionedSpike.NamedServer", DistributionStrategyScope.Send, context));
 
+            var endpointInstancesOfNamed = new List<EndpointInstance>
+            {
+                new EndpointInstance("PartionedSpike.NamedServer", "a"),
+                new EndpointInstance("PartionedSpike.NamedServer", "b"),
+                new EndpointInstance("PartionedSpike.NamedServer", "c")
+            };
+            var endpointInstancesOfRanged = new List<EndpointInstance>
+            {
+                new EndpointInstance("PartionedSpike.RangedServer", "99"),
+                new EndpointInstance("PartionedSpike.RangedServer", "199"),
+                new EndpointInstance("PartionedSpike.RangedServer", "299")
+            };
+
             var instances = internalSettings.GetOrCreate<EndpointInstances>();
-            foreach (var address in addressMap)
-            {
-                PopulateInstances(instances, address);
-            }
-        }
-
-        private void PopulateInstances(EndpointInstances instances, KeyValuePair<string, string> address)
-        {
-            var partitionedEndpoints = new List<EndpointInstance>();
-
-            var serviceName = new Uri(address.Value);
-            using (var client = new FabricClient())
-            {
-                var partitions = client.QueryManager.GetPartitionListAsync(serviceName).GetAwaiter().GetResult();
-
-                foreach (var partition in partitions)
-                {
-                    partitionedEndpoints.Add(new EndpointInstance(address.Key, partition.PartitionInformation.Id.ToString()));
-                }
-            }
-
-            instances.AddOrReplaceInstances(address.Value, partitionedEndpoints);
+            instances.AddOrReplaceInstances("PartionedSpike.NamedServer", endpointInstancesOfNamed);
+            instances.AddOrReplaceInstances("PartionedSpike.RangedServer", endpointInstancesOfRanged);
         }
 
         public IEndpointInstance EndpointInstance => _endpointInstance;

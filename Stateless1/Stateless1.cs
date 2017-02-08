@@ -4,7 +4,6 @@ using System.Fabric;
 using System.Threading;
 using System.Threading.Tasks;
 using Contract;
-using Microsoft.ServiceFabric.Services.Client;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
 using NServiceBus;
